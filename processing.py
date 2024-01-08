@@ -59,6 +59,7 @@ def estimate_doc_format(img, kps):
     return img
 
 def get_bgr_unif(img):
+    # Use graph cut segmentation
     return 100
 
 
@@ -82,11 +83,24 @@ def sel_cc_bbox(im_shape, bboxes):
 class ImageProcessor(nn.module):
 
     def __init__(self, config_path='./tddfa_v2/configs/mb1_120x120.yml'):
+        super().__init__()
         self.cfg = yaml.load(open(config_path), Loader=yaml.SafeLoader)
         self.face_boxes = FaceBoxes_ONNX()
         self.tddfa = TDDFA_ONNX(**self.cfg)
         self.qaa_model = None
 
+    def process(self, img, use_tracking=False, boxes=None, tgt_box=None, ver_lst=None):
+
+        if use_tracking:
+            tgt_box = self.calc_tracking(img, tgt_box, ver_lst)
+        else:
+            boxes = self.detect_faces(img)
+            tgt_id = sel_cc_bbox(boxes)
+            tgt_box = boxes[tgt_id]
+        ver_lst = self.align_landmarks(img, [tgt_box,])
+        face_qual = self.get_face_quality(img, ver_lst)
+        bgr_unif = self.get_bgr_unif(img, ver_lst)
+        return boxes, tgt_id, ver_lst, face_qual, bgr_unif
 
     def detect_faces(self, img):
         return self.face_boxes(img)
@@ -104,3 +118,7 @@ class ImageProcessor(nn.module):
         doc_format_img = estimate_doc_format(img, ver_lst)
         bgr_unif_score = get_bgr_unif(doc_format_img)
         return bgr_unif_score
+
+    def calc_tracking(self, img, prev_box, prev_ver_lst):
+        # Use optical flow
+        pass
