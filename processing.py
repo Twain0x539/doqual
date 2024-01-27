@@ -18,15 +18,16 @@ from tddfa_v2.FaceBoxes.FaceBoxes_ONNX import FaceBoxes_ONNX
 from tddfa_v2.TDDFA_ONNX import TDDFA_ONNX
 
 # given an image path
-def normalize_face(img, kps):  # performs face alignment
+def normalize_face(img, kps, src):  # performs face alignment
 
-    src = np.array([
-        [30.2946, 51.6963],
-        [65.5318, 51.5014],
-        [48.0252, 71.7366],
-        [33.5493, 92.3655],
-        [62.7299, 92.2041]], dtype=np.float32)
-    src[:, 0] += 8.0
+    if src is None:
+        src = np.array([
+            [30.2946, 51.6963],
+            [65.5318, 51.5014],
+            [48.0252, 71.7366],
+            [33.5493, 92.3655],
+            [62.7299, 92.2041]], dtype=np.float32)
+        src[:, 0] += 8.0
 
 
     _kps = np.array((np.mean(kps[36:41][:2]), np.mean(kps[42:47][:2])))
@@ -41,26 +42,6 @@ def normalize_face(img, kps):  # performs face alignment
 
     return np.array(warped_img)
 
-# def estimate_doc_format(img, kps):
-#     src = np.array([
-#         [30.2946, 51.6963],
-#         [65.5318, 51.5014],
-#         [48.0252, 71.7366],
-#         [33.5493, 92.3655],
-#         [62.7299, 92.2041]], dtype=np.float32)
-#     src[:, 0] += 8.0
-#
-#     kps = np.array(kps)[:, :2]
-#     dst = kps.astype(np.float32)
-#
-#     tform = trans.SimilarityTransform()
-#     tform.estimate(dst, src)
-#     m = tform.params[0:2, :]
-#     warped_img = cv2.warpAffine(img, m, (112, 112), borderValue=0.0)
-#
-#     return np.array(warped_img)
-def estimate_doc_format(img, kps):
-    return img
 
 def get_bgr_unif(img):
     # Use graph cut segmentation
@@ -121,7 +102,7 @@ class ImageProcessor(nn.Module):
         return 0
 
     def get_bgr_unif(self, img, ver_lst):
-        # doc_format_img = estimate_doc_format(img, ver_lst)
+        # doc_format_img = normalize_face(img, ver_lst, dst_lst)
         # bgr_unif_score = get_bgr_unif(doc_format_img)
         # return bgr_unif_score
         return 0

@@ -26,7 +26,7 @@ class TDDFA_ONNX(object):
         # torch.set_grad_enabled(False)
 
         # load onnx version of BFM
-        bfm_fp = kvs.get('bfm_fp', make_abs_path('configs/bfm_noneck_v3.pkl'))
+        bfm_fp = kvs.get('bfm_fp', make_abs_path('/configs/bfm_noneck_v3.pkl'))
         bfm_onnx_fp = bfm_fp.replace('.pkl', '.onnx')
         if not osp.exists(bfm_onnx_fp):
             convert_bfm_to_onnx(
