@@ -6,10 +6,15 @@ import numpy as np
 from torch import nn
 from qaa.models import qe_pipeline
 from skimage import transform as trans
+from recognition.models.iresnet import *
+import torch
+from torchvision import transforms
 
 sys.path.append("./tddfa_v2/")
 
-
+device = "cpu"
+if torch.cuda.is_available():
+    device = "cuda"
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.environ['OMP_NUM_THREADS'] = '4'
@@ -17,8 +22,7 @@ os.environ['OMP_NUM_THREADS'] = '4'
 from tddfa_v2.FaceBoxes.FaceBoxes_ONNX import FaceBoxes_ONNX
 from tddfa_v2.TDDFA_ONNX import TDDFA_ONNX
 
-# given an image path
-def normalize_face(img, kps, src):  # performs face alignment
+def normalize_face(img, kps, src=None):  # performs face alignment
 
     if src is None:
         src = np.array([
@@ -29,9 +33,9 @@ def normalize_face(img, kps, src):  # performs face alignment
             [62.7299, 92.2041]], dtype=np.float32)
         src[:, 0] += 8.0
 
+    _kps = np.array((np.mean(kps[36:41,:2], axis=0), np.mean(kps[42:47,:2], axis=0)))
 
-    _kps = np.array((np.mean(kps[36:41][:2]), np.mean(kps[42:47][:2])))
-    kps = np.vstack((_kps, kps[33, 48, 54][:2]))
+    kps = np.vstack((_kps, kps[[33, 48, 54],:2]))
 
     dst = kps.astype(np.float32)
 
@@ -39,13 +43,28 @@ def normalize_face(img, kps, src):  # performs face alignment
     tform.estimate(dst, src)
     m = tform.params[0:2, :]
     warped_img = cv2.warpAffine(img, m, (112, 112), borderValue=0.0)
-
     return np.array(warped_img)
 
 
-def get_bgr_unif(img):
-    # Use graph cut segmentation
-    return 100
+def get_bgr_unif(img, initial_face_points):
+
+    mask = np.zeros(img.shape[:2], np.uint8)
+    for y,x in initial_face_points:
+        mask[y][x] = 1 # Initial foreground
+
+
+    H, W = img.shape[:2]
+    sure_background = [(0,0), (0, W-1), (H-1, 0), (H-1, W-1)]
+    for y,x in sure_background:
+        mask[y][x] = 0  # Initial background
+
+    bgdModel = np.zeros((1, 65), np.float64)
+    fgdModel = np.zeros((1, 65), np.float64)
+    rect = (50, 50, 450, 290)
+    cv2.grabCut(img, mask, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_MASK)
+    mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
+    tr_img = img * mask2[:, :, np.newaxis]
+    return 100, tr_img
 
 
 # Select closest to the center bbox
@@ -71,22 +90,23 @@ class ImageProcessor(nn.Module):
         self.cfg = yaml.load(open(config_path), Loader=yaml.SafeLoader)
         self.face_boxes = FaceBoxes_ONNX()
         self.tddfa = TDDFA_ONNX(**self.cfg)
-        self.qaa_model = None
+        self.qaa_model = iresnet18()
+        self.qaa_model.load_state_dict(torch.load("./recognition/weights/ms1mv3_arcface_r18_fp16.pth", map_location=device))
+        self.qaa_model.eval()
+        self.transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+     ])
 
-    def process(self, img, use_tracking=False, boxes=None, tgt_id=None, ver_lst=None):
+    def process(self, img):
 
-        if use_tracking:
-            tgt_box = boxes[tgt_id]
-            tgt_box = self.calc_tracking(img, prev_box=tgt_box, prev_ver_lst=ver_lst)
-            boxes[tgt_id] = tgt_box
-        else:
-            boxes = self.detect_faces(img)
-            tgt_id = sel_cc_bbox(img.shape, boxes)
-            tgt_box = boxes[tgt_id]
+        boxes = self.detect_faces(img)
+        tgt_id = sel_cc_bbox(img.shape, boxes)
+        tgt_box = boxes[tgt_id]
         ver_lst = self.align_landmarks(img, [tgt_box,])
         face_qual = self.get_face_quality(img, ver_lst)
-        bgr_unif = self.get_bgr_unif(img, ver_lst)
-        return boxes, tgt_id, ver_lst, face_qual, bgr_unif
+        bgr_unif, no_bgr_img = self.get_bgr_unif(img, ver_lst)
+        return boxes, tgt_id, ver_lst, face_qual, bgr_unif, no_bgr_img
 
     def detect_faces(self, img):
         return self.face_boxes(img)
@@ -96,17 +116,22 @@ class ImageProcessor(nn.Module):
         return self.tddfa.recon_vers(param_lst, roi_box_lst, dense_flag=False)
 
     def get_face_quality(self, img, ver_lst):
-        # normalized_face = normalize_face(img, ver_lst)
-        # quality = self.qaa_model(normalized_face)
-        # return quality
-        return 0
+        ver_lst = ver_lst[0]
+        ver_lst = np.swapaxes(ver_lst, 0, 1)
+        normalized_face = normalize_face(img, ver_lst)
+        normalized_face = self.transform(normalized_face).unsqueeze(0)
+        with torch.no_grad():
+            quality = self.qaa_model(normalized_face)
+            quality = torch.norm(quality).detach().cpu().item()
+
+            quality = quality / 0.27
+            quality = np.clip(quality, a_min=0, a_max= 100).astype("uint8")
+        return quality
 
     def get_bgr_unif(self, img, ver_lst):
+
+        # dst_list = # Самый большой формат для доков
         # doc_format_img = normalize_face(img, ver_lst, dst_lst)
         # bgr_unif_score = get_bgr_unif(doc_format_img)
         # return bgr_unif_score
-        return 0
-
-    def calc_tracking(self, img, prev_box, prev_ver_lst):
-        # Use optical flow
-        pass
+        return 0, None

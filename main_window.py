@@ -46,13 +46,14 @@ class MainWindow(QMainWindow):
         self.font = QFont("Arial", 10)
 
     def load_image(self):
+
         dialog = QFileDialog(self)
         filename = dialog.getOpenFileName(self, "Open Image", filter="Images (*.png *.xpm *.jpg)")[0]
-
         if filename != "":
+            self.start_widget.hide()
             img = cv2.imread(filename)
             processing_result = self.image_processor.process(img)
-            boxes, tgt_id, ver_lst, face_qual, bgr_unif = processing_result
+            boxes, tgt_id, ver_lst, face_qual, bgr_unif, no_bgr_img = processing_result
 
             for i in range(len(boxes)):
                 tgt_box = boxes[i]
@@ -118,7 +119,7 @@ class MainWindow(QMainWindow):
             return_button.clicked.connect(self.load_image)
             continue_button = QPushButton("Продолжить")
             continue_button.setCheckable(True)
-            continue_button.clicked.connect(self.load_image)
+            #continue_button.clicked.connect()
             buttons_layout.addWidget(return_button)
             buttons_layout.addWidget(continue_button)
             buttons_widget.setLayout(buttons_layout)
