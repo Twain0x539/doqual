@@ -11,6 +11,7 @@ class MainWindow(QMainWindow):
         self.W = 1280
         self.H = 720
         self.setFixedSize(QSize(self.W, self.H))
+        self.orig_image = None
         self.image_processor = ImageProcessor()
         self.setWindowTitle("Оценщик качества")
 
@@ -51,6 +52,7 @@ class MainWindow(QMainWindow):
         if filename != "":
             self.start_widget.hide()
             img = cv2.imread(filename)
+            self.orig_image = img
             print(f"Img is not None: {img is not None}")
             processing_result = self.image_processor.process(img)
             self.processing_result = processing_result
@@ -110,7 +112,6 @@ class MainWindow(QMainWindow):
             q_img = QImage(img.data, width, height, bytesPerLine, QImage.Format.Format_BGR888)
             pixmap.convertFromImage(q_img)
 
-            print("some")
 
             lbl_quality = QLabel(self)
             lbl_quality.setFont(self.font)
@@ -164,7 +165,8 @@ class MainWindow(QMainWindow):
 
 
 
-            image_desc_layout = QVBoxLayout(self)
+            self.image_desc_layout = QVBoxLayout(self)
+            image_desc_layout = self.image_desc_layout
             buttons_widget = QWidget(self)
             buttons_layout = QHBoxLayout(self)
             return_button = QPushButton("Изменить изображение")
@@ -196,7 +198,8 @@ class MainWindow(QMainWindow):
             image_label.setPixmap(pixmap.scaled(self.W // 2, self.H))
 
 
-            processing_result_widget = QWidget(self)
+            self.processing_result_widget = QWidget(self)
+            processing_result_widget = self.processing_result_widget
             processing_result_layout = QHBoxLayout(self)
             processing_result_layout.addWidget(image_label)
             processing_result_layout.addWidget(image_desc_widget)
@@ -206,18 +209,52 @@ class MainWindow(QMainWindow):
             self.show()
 
 
-    def process_image(self, image, ver_lst):
-        _, _, ver_lst, _, _ = self.processing_result
-        doc_images = self.image_processor.estimate_doc_format(image, ver_lst, remove_bg=False)
+    def process_image(self):
+        self.processing_result_widget.hide()
 
+        self.doc_formats_widget = QWidget(self)
+        _, _, ver_lst, _, _ = self.processing_result
+        doc_images = self.image_processor.estimate_doc_formats(self.orig_image, self.processing_result[2])
         images_layout = QHBoxLayout(self)
 
+        save_buttons = []
+        image_and_save_layouts = []
+        image_and_save_widgets = []
+        pixmaps = []
         image_labels = []
-        # for i in range(len(doc_images)):
-        #     #image_and_save_widget = QWidget()
-        #     save_button = QPushButton("Сохранить")
-        #
-        #
-        #
-        #     image_labels.addWidget()
+
+
+        print(len(doc_images))
+        for i in range(len(doc_images)):
+            print(i)
+            image_and_save_widgets.append(QWidget(self))
+            image_and_save_layouts.append(QVBoxLayout(self))
+            image_labels.append(QLabel(self))
+            save_buttons.append(QPushButton("Сохранить"))
+            save_button = save_buttons[-1]
+            image_and_save_widget = image_and_save_widgets[-1]
+            image_and_save_layout = image_and_save_layouts[-1]
+            image_label = image_labels[-1]
+
+
+            pixmaps.append(QPixmap())
+            pixmap = pixmaps[-1]
+            img = doc_images[i].copy()
+            height, width, channel = img.shape
+            bytesPerLine = 3 * width
+            q_img = QImage(img.data, width, height, bytesPerLine, QImage.Format.Format_BGR888)
+            pixmap.convertFromImage(q_img)
+
+
+            image_label.setPixmap(pixmap)
+            image_and_save_layout.addWidget(image_label)
+            image_and_save_layout.addWidget(save_button)
+            image_and_save_widget.setLayout(image_and_save_layout)
+            images_layout.addWidget(image_and_save_widget)
+
+
+        self.doc_formats_widget.setLayout(images_layout)
+        self.setCentralWidget(self.doc_formats_widget)
+        self.show()
+
 

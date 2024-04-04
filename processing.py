@@ -119,11 +119,11 @@ class ImageProcessor(nn.Module):
 
     def estimate_doc_formats(self, img, ver_lst) -> list:
 
-        for i in range(5):
-            pass
-            #dst
+        # for i in range(5):
+        #     pass
+        #     #dst
         # Просчитать относительные позиции глаз и тд (без решейпа в 112) и приблизить 5 форматов
-        pass
+        return [img,img,img,img,img]
 
     def get_bgr_unif(self, img, initial_face_points, bbox):
         # img = cv2.resize(img, (300, 300))
