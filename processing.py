@@ -22,7 +22,7 @@ os.environ['OMP_NUM_THREADS'] = '4'
 from tddfa_v2.FaceBoxes.FaceBoxes_ONNX import FaceBoxes_ONNX
 from tddfa_v2.TDDFA_ONNX import TDDFA_ONNX
 
-def normalize_face(img, kps, src=None):  # performs face alignment
+def normalize_face(img, ver_lst, src=None, output_size=(112,112)):  # performs face alignment
 
     if src is None:
         src = np.array([
@@ -33,38 +33,17 @@ def normalize_face(img, kps, src=None):  # performs face alignment
             [62.7299, 92.2041]], dtype=np.float32)
         src[:, 0] += 8.0
 
-    _kps = np.array((np.mean(kps[36:41,:2], axis=0), np.mean(kps[42:47,:2], axis=0)))
+    _kps = np.array((np.mean(ver_lst[36:41,:2], axis=0), np.mean(ver_lst[42:47,:2], axis=0)))
 
-    kps = np.vstack((_kps, kps[[33, 48, 54],:2]))
+    kps = np.vstack((_kps, ver_lst[[33, 48, 54],:2]))
 
     dst = kps.astype(np.float32)
 
     tform = trans.SimilarityTransform()
     tform.estimate(dst, src)
     m = tform.params[0:2, :]
-    warped_img = cv2.warpAffine(img, m, (112, 112), borderValue=0.0)
+    warped_img = cv2.warpAffine(img, m, output_size, borderValue=0.0)
     return np.array(warped_img)
-
-
-def get_bgr_unif(img, initial_face_points):
-
-    mask = np.zeros(img.shape[:2], np.uint8)
-    for y,x in initial_face_points:
-        mask[y][x] = 1 # Initial foreground
-
-
-    H, W = img.shape[:2]
-    sure_background = [(0,0), (0, W-1), (H-1, 0), (H-1, W-1)]
-    for y,x in sure_background:
-        mask[y][x] = 0  # Initial background
-
-    bgdModel = np.zeros((1, 65), np.float64)
-    fgdModel = np.zeros((1, 65), np.float64)
-    rect = (50, 50, 450, 290)
-    cv2.grabCut(img, mask, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_MASK)
-    mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
-    tr_img = img * mask2[:, :, np.newaxis]
-    return 100, tr_img
 
 
 # Select closest to the center bbox
@@ -101,12 +80,20 @@ class ImageProcessor(nn.Module):
     def process(self, img):
 
         boxes = self.detect_faces(img)
-        tgt_id = sel_cc_bbox(img.shape, boxes)
-        tgt_box = boxes[tgt_id]
-        ver_lst = self.align_landmarks(img, [tgt_box,])
-        face_qual = self.get_face_quality(img, ver_lst)
-        bgr_unif, no_bgr_img = self.get_bgr_unif(img, ver_lst)
-        return boxes, tgt_id, ver_lst, face_qual, bgr_unif, no_bgr_img
+
+        tgt_id = None
+        ver_lst = None
+        face_qual = None
+        bgr_unif = None
+        print(boxes)
+        if len(boxes) >= 1:
+            tgt_id = sel_cc_bbox(img.shape, boxes)
+            tgt_box = boxes[tgt_id]
+            ver_lst = self.align_landmarks(img, [tgt_box,])
+            face_qual = self.get_face_quality(img, ver_lst)
+            bgr_unif, tr_img = self.get_bgr_unif(img, ver_lst, tgt_box)
+        print("Face Qual and BGRU computed")
+        return boxes, tgt_id, ver_lst, face_qual, bgr_unif
 
     def detect_faces(self, img):
         return self.face_boxes(img)
@@ -119,6 +106,7 @@ class ImageProcessor(nn.Module):
         ver_lst = ver_lst[0]
         ver_lst = np.swapaxes(ver_lst, 0, 1)
         normalized_face = normalize_face(img, ver_lst)
+        print("Face was normalized")
         normalized_face = self.transform(normalized_face).unsqueeze(0)
         with torch.no_grad():
             quality = self.qaa_model(normalized_face)
@@ -126,12 +114,34 @@ class ImageProcessor(nn.Module):
 
             quality = quality / 0.27
             quality = np.clip(quality, a_min=0, a_max= 100).astype("uint8")
+        print("Face quality estimated")
         return quality
 
-    def get_bgr_unif(self, img, ver_lst):
+    def estimate_doc_formats(self, img, ver_lst) -> list:
 
-        # dst_list = # Самый большой формат для доков
-        # doc_format_img = normalize_face(img, ver_lst, dst_lst)
-        # bgr_unif_score = get_bgr_unif(doc_format_img)
-        # return bgr_unif_score
-        return 0, None
+        for i in range(5):
+            pass
+            #dst
+        # Просчитать относительные позиции глаз и тд (без решейпа в 112) и приблизить 5 форматов
+        pass
+
+    def get_bgr_unif(self, img, initial_face_points, bbox):
+        # img = cv2.resize(img, (300, 300))
+        # mask = np.zeros(img.shape[:2], np.uint8)
+        # for y,x in initial_face_points:
+        #     mask[y][x] = 1 # Initial foreground
+        # H, W = img.shape[:2]
+        # sure_background = [(0,0), (0, W-1), (H-1, 0), (H-1, W-1)]
+
+        # print(bbox)
+        # bgdModel = np.zeros((1, 65), np.float64)
+        # fgdModel = np.zeros((1, 65), np.float64)
+        # rect = (bbox[1], bbox[0], bbox[3], bbox[2])
+        #
+        # print("Trying GrabCut")
+        # mask, _, _ = cv2.grabCut(img, None, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_RECT)
+        # print("GrabCut successful")
+        # mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
+        # tr_img = img * mask2[:, :, np.newaxis]
+        # return 100, tr_img
+        return 100, None

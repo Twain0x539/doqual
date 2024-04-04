@@ -1,0 +1,41 @@
+3X4:
+
+left_eye 0.3877, 0.409
+right_eye 0.6326, 0.409
+nose 0.5, 0.5
+left_mouth 0.448, 0.575
+right_mouse 0.5918, 0.575
+
+
+3X4.5:
+
+left_eye 0.368, 0.4657
+right_eye 0.61, 0.4657
+nose 0.491, 0.5616
+left_mouth 0.421, 0.658
+right_mouse 0.579, 0.658
+
+
+4.5X6:
+
+left_eye 0.3714, 0.371
+right_eye 0.6, 0.371
+nose 0.485, 0.4631
+left_mouth 0.4285, 0.536
+right_mouse 0.557, 0.536
+
+6X9:
+
+left_eye 0.4, 0.382
+right_eye 0.621, 0.382
+nose 0.515, 0.465
+left_mouth 0.442, 0.527
+right_mouse 0.557, 0.6
+
+9X12:
+
+left_eye 0.384, 0.382
+right_eye 0.587, 0.382
+nose 0.496, 0.466
+left_mouth 0.42, 0.534
+right_mouse 0.566, 0.534

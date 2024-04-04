@@ -4,8 +4,6 @@ from PyQt6.QtGui import QImage, QPixmap, QFont
 from processing import *
 import cv2
 
-
-# Подкласс QMainWindow для настройки главного окна приложения
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -44,6 +42,7 @@ class MainWindow(QMainWindow):
 
         self.start_widget.show()
         self.font = QFont("Arial", 10)
+        self.processing_result = None
 
     def load_image(self):
 
@@ -52,22 +51,58 @@ class MainWindow(QMainWindow):
         if filename != "":
             self.start_widget.hide()
             img = cv2.imread(filename)
+            print(f"Img is not None: {img is not None}")
             processing_result = self.image_processor.process(img)
-            boxes, tgt_id, ver_lst, face_qual, bgr_unif, no_bgr_img = processing_result
+            self.processing_result = processing_result
+            boxes, tgt_id, ver_lst, face_qual, bgr_unif = processing_result
 
-            for i in range(len(boxes)):
-                tgt_box = boxes[i]
-                if i == tgt_id:
-                    color = (0, 0, 255)
-                else:
-                    color = (0, 0, 255 / 4)
-                start_point = (int(tgt_box[0]), int(tgt_box[1]))
-                end_point = (int(tgt_box[2]), int(tgt_box[3]))
-                img = cv2.rectangle(img, start_point, end_point, color, 2)
+            if len(boxes) >= 1:
+                for i in range(len(boxes)):
+                    tgt_box = boxes[i]
+                    if i == tgt_id:
+                        color = (0, 0, 255)
+                    else:
+                        color = (0, 0, 255 / 4)
+                    start_point = (int(tgt_box[0]), int(tgt_box[1]))
+                    end_point = (int(tgt_box[2]), int(tgt_box[3]))
+                    img = cv2.rectangle(img, start_point, end_point, color, 2)
 
-            tgt_ver_lst = ver_lst[tgt_id]
-            for pt in tgt_ver_lst.T:
-                img = cv2.circle(img, (int(pt[0]), int(pt[1])), radius=0, color=(255, 0, 0), thickness=3)
+                tgt_ver_lst = ver_lst[tgt_id]
+                for pt in tgt_ver_lst.T:
+                    img = cv2.circle(img, (int(pt[0]), int(pt[1])), radius=0, color=(255, 0, 0), thickness=3)
+
+
+                tgt_box = list(map(int, boxes[tgt_id]))
+
+
+
+                h,w, _ = img.shape
+                scale = h / w
+                bbox_w = tgt_box[2] - tgt_box[0]
+                bbox_h = tgt_box[3] - tgt_box[1]
+                exl, exr, exu, exd = int(bbox_w * 0.1 * scale), int(bbox_w * 0.1 * scale),\
+                    int(bbox_h * 0.1 / scale), int(bbox_h * 0.2 / scale)
+
+                if tgt_box[1]  < exu:
+                    exu = tgt_box[1]
+                    exd = exu
+
+                if tgt_box[3] + exd  >= h:
+                    exd = h - tgt_box[3]
+                    exu = exd
+
+                if tgt_box[0]  < exl:
+                    exl = tgt_box[0]
+                    exr = exl
+
+                if tgt_box[2] + exr  >= w:
+                    exr = w - tgt_box[2]
+                    exl = exr
+
+
+                img = img[tgt_box[1]-exu:tgt_box[3]+exd, tgt_box[0]-exl:tgt_box[2]+exr].copy()
+                print("img tr")
+
 
             pixmap = QPixmap()
             height, width, channel = img.shape
@@ -75,39 +110,57 @@ class MainWindow(QMainWindow):
             q_img = QImage(img.data, width, height, bytesPerLine, QImage.Format.Format_BGR888)
             pixmap.convertFromImage(q_img)
 
+            print("some")
+
             lbl_quality = QLabel(self)
             lbl_quality.setFont(self.font)
 
-            if face_qual > 50:
+
+            if face_qual is None:
+                lbl_quality.setText(f'<span style="color:red;">Лицо отсутствует!</span>')
+            elif face_qual > 50:
                 lbl_quality.setText(f'<span style="color:black;"> Качество лица: {face_qual}</span> <br>'
-                                           f'<span style="color:green;">Высокое качество лица</span>')
+                                           f'<span style="color:green;">Приемлемое качество лица</span>')
             elif bgr_unif < 50:
                 lbl_quality.setText(f'<span style="color:black;"> Качество лица: {face_qual}</span> <br>'
                                            f'<span style="color:red;">Низкое качество лица</span>')
 
 
             lbl_bgr_score = QLabel(self)
-            if bgr_unif > 50:
-                lbl_bgr_score.setText(f'<span style="color:black;"> Однородность заднего фона: {bgr_unif}</span> <br>'
-                                           f'<span style="color:green;">Высокая однородность заднего фона</span>')
-            elif bgr_unif < 50:
-                lbl_bgr_score.setText(f'<span style="color:black;"> Однородность заднего фона: {bgr_unif}</span> <br>'
-                                           f'<span style="color:red;">Низкая однородность заднего фона</span>')
+
+            if bgr_unif is not None:
+                if bgr_unif > 50:
+                    lbl_bgr_score.setText(f'<span style="color:black;"> Однородность заднего фона: {bgr_unif}</span> <br>'
+                                               f'<span style="color:green;">Приемлемая однородность заднего фона</span>')
+                elif bgr_unif < 50:
+                    lbl_bgr_score.setText(f'<span style="color:black;"> Однородность заднего фона: {bgr_unif}</span> <br>'
+                                               f'<span style="color:red;">Низкая однородность заднего фона</span>')
 
 
             lbl_multiple_faces = QLabel(self)
             if len(boxes) > 1:
                 lbl_multiple_faces.setText(f'<span style="color:black;">На фотографии {len(boxes)} лиц</span> <br>'
                                            f'<span style="color:red;">На фотографии более 1 лица!</span>')
+                self.allow_processing = True
+
             elif len(boxes) == 0:
-                lbl_multiple_faces.setText(f'<span style="color:black;">На фотографии {len(boxes)} лиц</span> \n'
+                lbl_multiple_faces.setText(f'<span style="color:black;">На фотографии {len(boxes)} лиц</span> <br>'
                                            f'<span style="color:red;">На фотографии не найдено лиц!</span>')
+                self.allow_processing = False
+
+            elif len(boxes) == 1:
+                lbl_multiple_faces.setText(f'<span style="color:green;">На фотографии 1 лицо</span> <br>')
+                self.allow_processing = True
 
             lbl_tip = QLabel(self)
-            if len(boxes) > 1 or  len(boxes) == 0 or bgr_unif < 50 or face_qual < 45:
-                lbl_tip.setText(f'<span style="color:red;">Использование фотографию на документе не рекомендуется!</span>')
-            elif len(boxes) == 0:
-                lbl_tip.setText(f'<span style="color:red;">Фотография подходит для использования на документе</span>')
+
+            if len(boxes) == 0:
+                lbl_tip.setText(
+                    f'<span style="color:red;">Фотографию нельзя использовать на документе!</span>')
+            elif len(boxes) > 1 or bgr_unif < 50 or face_qual < 45:
+                lbl_tip.setText(f'<span style="color:red;">Использование фотографии на документе не рекомендуется!</span>')
+            else:
+                lbl_tip.setText(f'<span style="color:green;">Фотография подходит для использования на документе</span>')
 
 
 
@@ -119,19 +172,28 @@ class MainWindow(QMainWindow):
             return_button.clicked.connect(self.load_image)
             continue_button = QPushButton("Продолжить")
             continue_button.setCheckable(True)
-            #continue_button.clicked.connect()
+
+
+            continue_button.clicked.connect(self.process_image)
+            if not self.allow_processing:
+                continue_button.setEnabled(False)
+            else:
+                continue_button.setEnabled(True)
+
             buttons_layout.addWidget(return_button)
             buttons_layout.addWidget(continue_button)
             buttons_widget.setLayout(buttons_layout)
             image_desc_layout.addWidget(lbl_quality)
-            image_desc_layout.addWidget(lbl_bgr_score)
+
+            if len(boxes) > 0:
+                image_desc_layout.addWidget(lbl_bgr_score)
             image_desc_layout.addWidget(lbl_multiple_faces)
             image_desc_layout.addWidget(lbl_tip)
             image_desc_layout.addWidget(buttons_widget)
             image_desc_widget = QWidget(self)
             image_desc_widget.setLayout(image_desc_layout)
             image_label = QLabel(self)
-            image_label.setPixmap(pixmap)
+            image_label.setPixmap(pixmap.scaled(self.W // 2, self.H))
 
 
             processing_result_widget = QWidget(self)
@@ -144,11 +206,18 @@ class MainWindow(QMainWindow):
             self.show()
 
 
-    def process_image(self, image, kps):
-        doc_images = self.image_processor.estimate_doc_format(image, kps, remove_bg=False)
+    def process_image(self, image, ver_lst):
+        _, _, ver_lst, _, _ = self.processing_result
+        doc_images = self.image_processor.estimate_doc_format(image, ver_lst, remove_bg=False)
 
         images_layout = QHBoxLayout(self)
 
         image_labels = []
-        for i in range(len(doc_images)):
-            image_labels.append()
+        # for i in range(len(doc_images)):
+        #     #image_and_save_widget = QWidget()
+        #     save_button = QPushButton("Сохранить")
+        #
+        #
+        #
+        #     image_labels.addWidget()
+
