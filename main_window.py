@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
         self.start_widget.setGeometry((self.W - tip_w) // 2, (self.H - tip_h) // 2, tip_w, tip_h)
 
         self.start_widget.show()
-        self.font = QFont("Arial", 10)
+        self.font = QFont("Arial", 20)
         self.processing_result = None
 
     def load_image(self):
@@ -128,6 +128,7 @@ class MainWindow(QMainWindow):
 
 
             lbl_bgr_score = QLabel(self)
+            lbl_bgr_score.setFont(self.font)
 
             if bgr_unif is not None:
                 if bgr_unif > 50:
@@ -139,6 +140,7 @@ class MainWindow(QMainWindow):
 
 
             lbl_multiple_faces = QLabel(self)
+            lbl_multiple_faces.setFont(self.font)
             if len(boxes) > 1:
                 lbl_multiple_faces.setText(f'<span style="color:black;">На фотографии {len(boxes)} лиц</span> <br>'
                                            f'<span style="color:red;">На фотографии более 1 лица!</span>')
@@ -154,7 +156,7 @@ class MainWindow(QMainWindow):
                 self.allow_processing = True
 
             lbl_tip = QLabel(self)
-
+            lbl_tip.setFont(QFont("Arial", 14))
             if len(boxes) == 0:
                 lbl_tip.setText(
                     f'<span style="color:red;">Фотографию нельзя использовать на документе!</span>')
@@ -172,18 +174,18 @@ class MainWindow(QMainWindow):
             return_button = QPushButton("Изменить изображение")
             return_button.setCheckable(True)
             return_button.clicked.connect(self.load_image)
-            continue_button = QPushButton("Продолжить")
-            continue_button.setCheckable(True)
+            # continue_button = QPushButton("Продолжить")
+            # continue_button.setCheckable(True)
 
 
-            continue_button.clicked.connect(self.process_image)
-            if not self.allow_processing:
-                continue_button.setEnabled(False)
-            else:
-                continue_button.setEnabled(True)
+            #continue_button.clicked.connect(self.process_image)
+            # if not self.allow_processing:
+            #     continue_button.setEnabled(False)
+            # else:
+            #     continue_button.setEnabled(True)
 
             buttons_layout.addWidget(return_button)
-            buttons_layout.addWidget(continue_button)
+            # buttons_layout.addWidget(continue_button)
             buttons_widget.setLayout(buttons_layout)
             image_desc_layout.addWidget(lbl_quality)
 
@@ -209,52 +211,52 @@ class MainWindow(QMainWindow):
             self.show()
 
 
-    def process_image(self):
-        self.processing_result_widget.hide()
-
-        self.doc_formats_widget = QWidget(self)
-        _, _, ver_lst, _, _ = self.processing_result
-        doc_images = self.image_processor.estimate_doc_formats(self.orig_image, self.processing_result[2])
-        images_layout = QHBoxLayout(self)
-
-        save_buttons = []
-        image_and_save_layouts = []
-        image_and_save_widgets = []
-        pixmaps = []
-        image_labels = []
-
-
-        print(len(doc_images))
-        for i in range(len(doc_images)):
-            print(i)
-            image_and_save_widgets.append(QWidget(self))
-            image_and_save_layouts.append(QVBoxLayout(self))
-            image_labels.append(QLabel(self))
-            save_buttons.append(QPushButton("Сохранить"))
-            save_button = save_buttons[-1]
-            image_and_save_widget = image_and_save_widgets[-1]
-            image_and_save_layout = image_and_save_layouts[-1]
-            image_label = image_labels[-1]
-
-
-            pixmaps.append(QPixmap())
-            pixmap = pixmaps[-1]
-            img = doc_images[i].copy()
-            height, width, channel = img.shape
-            bytesPerLine = 3 * width
-            q_img = QImage(img.data, width, height, bytesPerLine, QImage.Format.Format_BGR888)
-            pixmap.convertFromImage(q_img)
-
-
-            image_label.setPixmap(pixmap)
-            image_and_save_layout.addWidget(image_label)
-            image_and_save_layout.addWidget(save_button)
-            image_and_save_widget.setLayout(image_and_save_layout)
-            images_layout.addWidget(image_and_save_widget)
-
-
-        self.doc_formats_widget.setLayout(images_layout)
-        self.setCentralWidget(self.doc_formats_widget)
-        self.show()
+    # def process_image(self):
+    #     self.processing_result_widget.hide()
+    #
+    #     self.doc_formats_widget = QWidget(self)
+    #     _, _, ver_lst, _, _ = self.processing_result
+    #     doc_images = self.image_processor.estimate_doc_formats(self.orig_image, self.processing_result[2])
+    #     images_layout = QHBoxLayout(self)
+    #
+    #     save_buttons = []
+    #     image_and_save_layouts = []
+    #     image_and_save_widgets = []
+    #     pixmaps = []
+    #     image_labels = []
+    #
+    #
+    #     print(len(doc_images))
+    #     for i in range(len(doc_images)):
+    #         print(i)
+    #         image_and_save_widgets.append(QWidget(self))
+    #         image_and_save_layouts.append(QVBoxLayout(self))
+    #         image_labels.append(QLabel(self))
+    #         save_buttons.append(QPushButton("Сохранить"))
+    #         save_button = save_buttons[-1]
+    #         image_and_save_widget = image_and_save_widgets[-1]
+    #         image_and_save_layout = image_and_save_layouts[-1]
+    #         image_label = image_labels[-1]
+    #
+    #
+    #         pixmaps.append(QPixmap())
+    #         pixmap = pixmaps[-1]
+    #         img = doc_images[i].copy()
+    #         height, width, channel = img.shape
+    #         bytesPerLine = 3 * width
+    #         q_img = QImage(img.data, width, height, bytesPerLine, QImage.Format.Format_BGR888)
+    #         pixmap.convertFromImage(q_img)
+    #
+    #
+    #         image_label.setPixmap(pixmap)
+    #         image_and_save_layout.addWidget(image_label)
+    #         image_and_save_layout.addWidget(save_button)
+    #         image_and_save_widget.setLayout(image_and_save_layout)
+    #         images_layout.addWidget(image_and_save_widget)
+    #
+    #
+    #     self.doc_formats_widget.setLayout(images_layout)
+    #     self.setCentralWidget(self.doc_formats_widget)
+    #     self.show()
 
 

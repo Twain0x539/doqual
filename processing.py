@@ -117,14 +117,6 @@ class ImageProcessor(nn.Module):
         print("Face quality estimated")
         return quality
 
-    def estimate_doc_formats(self, img, ver_lst) -> list:
-
-        # for i in range(5):
-        #     pass
-        #     #dst
-        # Просчитать относительные позиции глаз и тд (без решейпа в 112) и приблизить 5 форматов
-        return [img,img,img,img,img]
-
     def get_bgr_unif(self, img, initial_face_points, bbox):
         # img = cv2.resize(img, (300, 300))
         # mask = np.zeros(img.shape[:2], np.uint8)
