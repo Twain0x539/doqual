@@ -82,8 +82,8 @@ class MainWindow(QMainWindow):
                 scale = h / w
                 bbox_w = tgt_box[2] - tgt_box[0]
                 bbox_h = tgt_box[3] - tgt_box[1]
-                exl, exr, exu, exd = int(bbox_w * 0.1 * scale), int(bbox_w * 0.1 * scale),\
-                    int(bbox_h * 0.1 / scale), int(bbox_h * 0.2 / scale)
+                exl, exr, exu, exd = int(bbox_w * 0.6 * scale), int(bbox_w * 0.6 * scale),\
+                    int(bbox_h * 0.3 / scale), int(bbox_h * 0.5 / scale)
 
                 if tgt_box[1]  < exu:
                     exu = tgt_box[1]

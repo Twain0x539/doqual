@@ -9,6 +9,7 @@ from skimage import transform as trans
 from recognition.models.iresnet import *
 import torch
 from torchvision import transforms
+import matplotlib.pyplot as plt
 
 sys.path.append("./tddfa_v2/")
 
@@ -91,7 +92,7 @@ class ImageProcessor(nn.Module):
             tgt_box = boxes[tgt_id]
             ver_lst = self.align_landmarks(img, [tgt_box,])
             face_qual = self.get_face_quality(img, ver_lst)
-            bgr_unif, tr_img = self.get_bgr_unif(img, ver_lst, tgt_box)
+            bgr_unif, tr_img = self.get_bgr_unif(img)
         print("Face Qual and BGRU computed")
         return boxes, tgt_id, ver_lst, face_qual, bgr_unif
 
@@ -117,23 +118,16 @@ class ImageProcessor(nn.Module):
         print("Face quality estimated")
         return quality
 
-    def get_bgr_unif(self, img, initial_face_points, bbox):
-        # img = cv2.resize(img, (300, 300))
-        # mask = np.zeros(img.shape[:2], np.uint8)
-        # for y,x in initial_face_points:
-        #     mask[y][x] = 1 # Initial foreground
-        # H, W = img.shape[:2]
-        # sure_background = [(0,0), (0, W-1), (H-1, 0), (H-1, W-1)]
+    def get_bgr_unif(self, img):
+        img = cv2.resize(img, (500, 500))
+        h = plt.hist(img.ravel(), 256, [0, 256])  # Построение гистограммы с 256 бинами (оттенками) от 0 до 256
+        vals = h[0]
+        bins = h[1][:-1]
+        im_pxs = vals[bins > 150].sum()
 
-        # print(bbox)
-        # bgdModel = np.zeros((1, 65), np.float64)
-        # fgdModel = np.zeros((1, 65), np.float64)
-        # rect = (bbox[1], bbox[0], bbox[3], bbox[2])
-        #
-        # print("Trying GrabCut")
-        # mask, _, _ = cv2.grabCut(img, None, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_RECT)
-        # print("GrabCut successful")
-        # mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
-        # tr_img = img * mask2[:, :, np.newaxis]
-        # return 100, tr_img
-        return 100, None
+        max_pix = img.shape[0] * img.shape[1] * img.shape[2]
+        max_pix = np.clip(max_pix, a_min=0, a_max=400000)
+        result = 100 * im_pxs / max_pix
+        result = np.clip(result, a_min=0, a_max=100)
+
+        return result, None
